@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* simple radial backgrounds */
+:root {
+  --bg-grad: radial-gradient(1200px 600px at 20% -10%, rgba(99,102,241,.18), transparent 60%),
+             radial-gradient(900px 500px at 120% 10%, rgba(16,185,129,.12), transparent 55%);
+}
+html { height: 100%; }
+body, #root { height: 100%; }
+
+/* prose tweaks for the rendered answer */
+.answer-body a.cite {
+  @apply underline decoration-dashed underline-offset-4 text-blue-600 dark:text-blue-400;
+}
+.answer-body blockquote {
+  @apply border-l-4 pl-3 py-2 rounded bg-blue-50/40 dark:bg-white/5 dark:border-blue-400/60;
+}

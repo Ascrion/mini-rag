@@ -1,6 +1,6 @@
-# 📑 Mini-RAG Project Report
+# Mini-RAG Project Report
 
-## ✅ Current Status
+## Current Status
 - End-to-end **Retrieval-Augmented Generation (RAG)** pipeline is working:
   1. **Documents** are chunked and embedded with **Gemini `embedding-001`** (768-dim).
   2. **Embeddings** are stored and retrieved from a **Pinecone** index (`mini-rag`, 768-dim, cosine metric).
@@ -14,7 +14,7 @@ You confirmed:
 
 ---
 
-## 🛠️ Technologies Used
+### Technologies Used
 
 ### Backend
 - **Node.js (v22)** — runtime.  
@@ -66,7 +66,7 @@ You confirmed:
    ┌─────────────┼─────────────────┐
    │             │                 │
    │             │                 │
-┌──▼──┐    ┌─────▼─────┐    ┌─────▼─────┐
+┌──▼──-┐    ┌─────▼─────┐    ┌─────▼─────┐
 │Gemini│    │  Pinecone │    │  Cohere   │
 │Embed │    │  VectorDB │    │  Rerank   │
 └──┬───┘    └─────┬─────┘    └─────┬─────┘
@@ -85,7 +85,15 @@ You confirmed:
 API Endpoints
 POST /upsert
 
-
+## To Do
+[x] Frontend 
+[] Inline citations and metadata
+[] cost estimates
+[] Handle No Answer Cases
+[] Request Timing and token display
+[] Hosting on Vercel
+[] README
+[] Trials QA for user guidance
 
 ## 📦 Libraries Installed
 ```json
@@ -102,4 +110,3 @@ POST /upsert
   "react-scripts": "..."
 }
 
-### 
