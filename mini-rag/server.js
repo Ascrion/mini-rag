@@ -36,7 +36,7 @@ console.log("[BOOT] NODE_ENV:", process.env.NODE_ENV || "(not set)");
 const app = express();
 const allowedOrigins = [
   /^https?:\/\/localhost(:\d+)?$/,
-  
+  'https://mini-rag-frontend.onrender.com',
 ];
 
 app.use(cors({
