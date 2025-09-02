@@ -34,18 +34,38 @@ console.log("[BOOT] NODE_ENV:", process.env.NODE_ENV || "(not set)");
 
 /* ----------------------------- Express Setup ----------------------------- */
 const app = express();
+
+// Allow your local dev + deployed frontend
 const allowedOrigins = [
-  /^https?:\/\/localhost(:\d+)?$/,
-  'https://mini-rag-frontend.onrender.com',
+  /^https?:\/\/localhost(?::\d+)?$/,           // http(s)://localhost[:port]
+  "https://mini-rag-frontend.onrender.com",    // your Render frontend
 ];
 
-app.use(cors({
+// Safe origin checker for strings + regex
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // server-to-server or curl
+  return allowedOrigins.some((entry) =>
+    typeof entry === "string" ? entry === origin : entry.test(origin)
+  );
+}
+
+// Central CORS options
+const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // allow server-to-server / curl
-    if (allowedOrigins.some(re => re.test(origin))) return cb(null, true);
+    if (isAllowedOrigin(origin)) return cb(null, true);
     return cb(new Error("Not allowed by CORS"));
-  }
-}));
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
+
+// Apply CORS early (before body parser / limiter)
+app.use(cors(corsOptions));
+
+// Respond to preflight quickly
+app.options("*", cors(corsOptions));
 
 app.use(bodyParser.json({ limit: "2mb" }));
 
@@ -57,7 +77,6 @@ app.use((req, _res, next) => {
     `[REQ  ${req.requestId}] ${req.method} ${req.originalUrl} — ip=${req.ip}`
   );
   if (req.body && Object.keys(req.body).length) {
-    // Avoid dumping huge bodies
     const preview = JSON.stringify(req.body).slice(0, 800);
     console.log(
       `[REQ  ${req.requestId}] body: ${preview}${
@@ -68,19 +87,21 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Rate limiter with logs
+// Rate limiter — skip preflight OPTIONS
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests. Please slow down." },
-  handler: (req, res /*, next */) => {
+  skip: (req) => req.method === "OPTIONS",
+  handler: (req, res) => {
     console.warn(`[RATE ${req.requestId}] Too many requests from ip=${req.ip}`);
     res.status(429).json({ error: "Too many requests. Please slow down." });
   },
 });
 app.use(limiter);
+
 
 // On response finish, log total duration
 app.use((req, res, next) => {
