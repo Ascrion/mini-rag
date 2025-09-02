@@ -34,7 +34,19 @@ console.log("[BOOT] NODE_ENV:", process.env.NODE_ENV || "(not set)");
 
 /* ----------------------------- Express Setup ----------------------------- */
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  
+];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow server-to-server / curl
+    if (allowedOrigins.some(re => re.test(origin))) return cb(null, true);
+    return cb(new Error("Not allowed by CORS"));
+  }
+}));
+
 app.use(bodyParser.json({ limit: "2mb" }));
 
 // Simple requestId + logger middleware

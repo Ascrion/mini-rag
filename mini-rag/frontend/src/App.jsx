@@ -351,6 +351,7 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
             {!answerHtml && !error && (
               <div className="mt-4 bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center text-slate-600 dark:text-slate-400 shadow-panel dark:shadow-panelDark">
                 <p>Ask a question to get an answer</p>
+                <p className="text-sm opacity-80">Please wait 15 seconds on initial boot for backend to start</p>
                 <p className="text-sm opacity-80">Powered by Gemini • Pinecone • Cohere</p>
               </div>
             )}
@@ -367,7 +368,7 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-center py-5">
-        <span>Mini-RAG</span>
+        <span>Mini-rag</span>
         <span className="mx-2">•</span>
         <span>API: <code>{API.replace(/^https?:\/\//, "")}</code></span>
       </footer>

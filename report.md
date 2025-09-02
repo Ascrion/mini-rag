@@ -92,8 +92,11 @@ POST /upsert
 [x] Request Timing and token display
 [x] cost estimates
 [] Hosting on Vercel
-[] README
-[] Documentation On README showing 5 Golden Cases
+[] README - Setup, Architecture, Resume Link
+[] Documentation On README showing 5 Q/A Golden Pairs
+[] Index Config
+[] Remarks
+[] Attribution
 
 ## 📦 Libraries Installed
 ```json
