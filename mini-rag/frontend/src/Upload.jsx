@@ -56,7 +56,7 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
   async function resetIndex() {
     if (!confirm("Reset all documents?")) return;
     setBusy(true);
-    setStatus("Resetting index…");
+    setStatus("Resetting documents…");
     try {
       const res = await fetch(`${apiBase.replace(/\/$/, "")}/reset`, {
         method: "POST",
@@ -127,7 +127,7 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
           className="rounded-lg border border-rose-300 dark:border-rose-600 px-4 py-2 text-sm text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
           title="Delete all vectors in the index"
         >
-          Reset Index
+          Reset Docs
         </button>
       </div>
 

@@ -15,7 +15,10 @@ const REQUIRED_ENV = [
   "PINECONE_API_KEY",
   "PINECONE_INDEX",
   "GOOGLE_API_KEY",
-  // Optional: "COHERE_API_KEY",
+  "COHERE_API_KEY",
+  "GEMINI_INPUT_USD_PER_1K",
+  "GEMINI_OUTPUT_USD_PER_1K",
+  "EMBEDDING_USD_PER_1K"
 ];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
@@ -44,7 +47,11 @@ app.use((req, _res, next) => {
   if (req.body && Object.keys(req.body).length) {
     // Avoid dumping huge bodies
     const preview = JSON.stringify(req.body).slice(0, 800);
-    console.log(`[REQ  ${req.requestId}] body: ${preview}${preview.length === 800 ? "…(truncated)" : ""}`);
+    console.log(
+      `[REQ  ${req.requestId}] body: ${preview}${
+        preview.length === 800 ? "…(truncated)" : ""
+      }`
+    );
   }
   next();
 });
@@ -68,7 +75,9 @@ app.use((req, res, next) => {
   const end = res.end;
   res.end = function (...args) {
     const ms = Date.now() - (req._startedAt || Date.now());
-    console.log(`[RESP ${req.requestId}] status=${res.statusCode} durationMs=${ms}`);
+    console.log(
+      `[RESP ${req.requestId}] status=${res.statusCode} durationMs=${ms}`
+    );
     return end.apply(this, args);
   };
   next();
@@ -121,11 +130,16 @@ async function embedText(text, requestId = "") {
     const vec = res.data?.embedding?.values;
     if (!Array.isArray(vec)) throw new Error("Bad embedding shape from Gemini");
     const ms = Date.now() - t0;
-    console.log(`[EMB  ${requestId}] length=${text.length} dims=${vec.length} durationMs=${ms}`);
+    console.log(
+      `[EMB  ${requestId}] length=${text.length} dims=${vec.length} durationMs=${ms}`
+    );
     return vec;
   } catch (err) {
     const ms = Date.now() - t0;
-    console.error(`[EMB  ${requestId}] FAILED durationMs=${ms}`, err?.response?.data || err.message);
+    console.error(
+      `[EMB  ${requestId}] FAILED durationMs=${ms}`,
+      err?.response?.data || err.message
+    );
     throw err;
   }
 }
@@ -142,6 +156,36 @@ function parseModelJson(raw) {
   } catch {
     return null;
   }
+}
+
+/* ------------------------ Cost / Usage Helpers --------------------------- */
+function dollars(n) {
+  return Math.round((Number(n) || 0) * 10000) / 10000; // 4dp
+}
+
+// from Gemini generateContent usageMetadata
+function estimateGeminiCost(usage) {
+  const inPer1k = Number(process.env.GEMINI_INPUT_USD_PER_1K || 0);
+  const outPer1k = Number(process.env.GEMINI_OUTPUT_USD_PER_1K || 0);
+  const inTok = usage?.promptTokenCount || 0;
+  const outTok = usage?.candidatesTokenCount || 0;
+  const inCost = (inTok / 1000) * inPer1k;
+  const outCost = (outTok / 1000) * outPer1k;
+  return {
+    inTok,
+    outTok,
+    inCost: dollars(inCost),
+    outCost: dollars(outCost),
+    total: dollars(inCost + outCost),
+  };
+}
+
+// crude estimate for embeddings (Gemini embed API doesn’t return token usage)
+function estimateEmbeddingCost(charCount) {
+  const per1k = Number(process.env.EMBEDDING_USD_PER_1K || 0);
+  const approxTokens = Math.ceil((charCount || 0) / 4); // ~4 chars/token heuristic
+  const cost = (approxTokens / 1000) * per1k;
+  return { approxTokens, cost: dollars(cost) };
 }
 
 /* ------------------------------- Reranker ------------------------------- */
@@ -219,9 +263,15 @@ app.get("/", (_req, res) => {
 app.get("/health", async (_req, res) => {
   try {
     const stats = await index.describeIndexStats();
-    res.json({ ok: true, index: indexName, namespaces: Object.keys(stats?.namespaces || {}) });
+    res.json({
+      ok: true,
+      index: indexName,
+      namespaces: Object.keys(stats?.namespaces || {}),
+    });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e?.message || "health failed" });
+    res
+      .status(500)
+      .json({ ok: false, error: e?.message || "health failed" });
   }
 });
 
@@ -241,6 +291,7 @@ app.post("/upsert", async (req, res) => {
     const ns = index.namespace("default");
     let totalChunks = 0;
     let totalVectors = 0;
+    let embedCharSum = 0;
 
     for (const doc of docs) {
       if (!doc?.id || !doc?.text) {
@@ -270,12 +321,15 @@ app.post("/upsert", async (req, res) => {
 
       const chunks = chunkText(doc.text);
       console.log(
-        `[UPS  ${rid}] docId="${docId}" chunkCount=${chunks.length} (title=${doc.title || "n/a"})`
+        `[UPS  ${rid}] docId="${docId}" chunkCount=${chunks.length} (title=${
+          doc.title || "n/a"
+        })`
       );
 
       const vectors = [];
       for (let i = 0; i < chunks.length; i++) {
         const values = await embedText(chunks[i], rid);
+        embedCharSum += chunks[i].length;
         const metadata = cleanMeta({
           text: chunks[i],
           docId,
@@ -300,15 +354,21 @@ app.post("/upsert", async (req, res) => {
     }
 
     const ms = Date.now() - t0;
+    const embCost = estimateEmbeddingCost(embedCharSum);
+
     console.log(
-      `[UPS  ${rid}] DONE totalDocs=${docs.length} totalChunks=${totalChunks} totalVectors=${totalVectors} durationMs=${ms}`
+      `[UPS  ${rid}] DONE totalDocs=${docs.length} totalChunks=${totalChunks} totalVectors=${totalVectors} durationMs=${ms} ` +
+        `embTokens≈${embCost.approxTokens} embCost≈$${embCost.cost}`
     );
+
     res.json({
       status: "upserted",
       totalDocs: docs.length,
       totalChunks,
       totalVectors,
       durationMs: ms,
+      costEstimate: { embedding: embCost, totalUsd: embCost.cost },
+      count: totalChunks, // alias for older UIs
     });
   } catch (e) {
     const msg = e?.response?.data || e.message || "Upsert failed";
@@ -346,10 +406,13 @@ app.post("/reset", async (req, res) => {
     const stats = await index.describeIndexStats();
     const listed = Object.keys(stats?.namespaces || {}); // may or may not include ""
     const candidates = new Set(listed);
-    candidates.add("");        // root (default-no-namespace)
+    candidates.add(""); // root (default-no-namespace)
     candidates.add("default"); // your active ns
 
-    console.log(`[RST  ${rid}] Namespaces (pre):`, [...candidates].join(", ") || "(none)");
+    console.log(
+      `[RST  ${rid}] Namespaces (pre):`,
+      [...candidates].join(", ") || "(none)"
+    );
 
     const cleared = [];
     for (const ns of candidates) {
@@ -372,7 +435,9 @@ app.post("/reset", async (req, res) => {
     const ms = Date.now() - t0;
     if (remaining.length) {
       console.warn(
-        `[RST  ${rid}] Attempted reset but remaining namespaces have data: ${remaining.join(", ")} durationMs=${ms}`
+        `[RST  ${rid}] Attempted reset but remaining namespaces have data: ${remaining.join(
+          ", "
+        )} durationMs=${ms}`
       );
       return res.status(200).json({
         status: "attempted_but_remaining",
@@ -382,8 +447,14 @@ app.post("/reset", async (req, res) => {
       });
     }
 
-    console.log(`[RST  ${rid}] DONE cleared=${cleared.join(", ")} durationMs=${ms}`);
-    res.json({ status: "deleted_all", namespaces_cleared: cleared, durationMs: ms });
+    console.log(
+      `[RST  ${rid}] DONE cleared=${cleared.join(", ")} durationMs=${ms}`
+    );
+    res.json({
+      status: "deleted_all",
+      namespaces_cleared: cleared,
+      durationMs: ms,
+    });
   } catch (e) {
     const msg = e?.response?.data?.message || e.message || "Reset failed";
     console.error(`[RST  ${rid}] ERROR`, msg);
@@ -396,7 +467,10 @@ app.get("/pc/namespaces", async (req, res) => {
   const rid = req.requestId;
   try {
     const stats = await index.describeIndexStats();
-    console.log(`[STAT ${rid}] namespaces:`, Object.keys(stats?.namespaces || {}).join(", "));
+    console.log(
+      `[STAT ${rid}] namespaces:`,
+      Object.keys(stats?.namespaces || {}).join(", ")
+    );
     res.json({ namespaces: stats?.namespaces ?? {} });
   } catch (e) {
     console.error(`[STAT ${rid}] ERROR`, e?.message);
@@ -419,7 +493,7 @@ app.get("/pc/stats", async (req, res) => {
 /**
  * POST /query
  * Body: { query: string, topK?: number }
- * Returns: { answer, citations, sources, durationMs }
+ * Returns: { answer, citations, sources, durationMs, usage?, costEstimate? }
  */
 app.post("/query", async (req, res) => {
   const rid = req.requestId;
@@ -429,15 +503,25 @@ app.post("/query", async (req, res) => {
     const { query, topK = 8 } = req.body;
     if (!query || typeof query !== "string") {
       console.warn(`[QRY  ${rid}] Missing or invalid 'query'`);
-      return res.status(400).json({ error: "Body should be { query: string }" });
+      return res
+        .status(400)
+        .json({ error: "Body should be { query: string }" });
     }
 
-    console.log(`[QRY  ${rid}] topK=${topK} query="${query.slice(0, 120)}${query.length > 120 ? "…": ""}"`);
+    console.log(
+      `[QRY  ${rid}] topK=${topK} query="${query.slice(0, 120)}${
+        query.length > 120 ? "…" : ""
+      }"`
+    );
 
     // Embed the query
     const tEmb = Date.now();
     const queryEmbedding = await embedText(query, rid);
-    console.log(`[QRY  ${rid}] Embedding dims=${queryEmbedding.length} durationMs=${Date.now() - tEmb}`);
+    console.log(
+      `[QRY  ${rid}] Embedding dims=${queryEmbedding.length} durationMs=${
+        Date.now() - tEmb
+      }`
+    );
 
     // Retrieve from Pinecone
     const tPine = Date.now();
@@ -447,7 +531,9 @@ app.post("/query", async (req, res) => {
       includeMetadata: true,
     });
     const pineMs = Date.now() - tPine;
-    console.log(`[QRY  ${rid}] Pinecone matches=${search?.matches?.length || 0} durationMs=${pineMs}`);
+    console.log(
+      `[QRY  ${rid}] Pinecone matches=${search?.matches?.length || 0} durationMs=${pineMs}`
+    );
 
     // Build structured sources
     let sources = (search?.matches || [])
@@ -471,39 +557,46 @@ app.post("/query", async (req, res) => {
     sources = sources.map((s, i) => ({ ...s, num: i + 1 }));
     console.log(`[QRY  ${rid}] Rerank in/out=${before}→${sources.length}`);
 
-// If no results
-if (sources.length === 0) {
-  const ms = Date.now() - started;
+    // If no results (two-path messaging)
+    if (sources.length === 0) {
+      const ms = Date.now() - started;
 
-  // Check if index is completely empty
-  let totalVectors = 0;
-  try {
-    const stats = await index.describeIndexStats();
-    totalVectors = Object.values(stats?.namespaces || {}).reduce(
-      (sum, ns) => sum + (ns?.vectorCount ?? ns?.recordCount ?? 0),
-      0
-    );
-  } catch (err) {
-    console.warn(`[QRY  ${rid}] Failed to check index stats`, err.message);
-  }
+      // Check if index is completely empty
+      let totalVectors = 0;
+      try {
+        const stats = await index.describeIndexStats();
+        totalVectors = Object.values(stats?.namespaces || {}).reduce(
+          (sum, ns) => sum + (ns?.vectorCount ?? ns?.recordCount ?? 0),
+          0
+        );
+      } catch (err) {
+        console.warn(`[QRY  ${rid}] Failed to check index stats`, err.message);
+      }
 
-  const answer =
-    totalVectors === 0
-      ? "no documents provided"
-      : "I couldn't find an answer in the provided documents.";
+      const answer =
+        totalVectors === 0
+          ? "no documents provided"
+          : "I couldn't find an answer in the provided documents.";
 
-  console.log(
-    `[QRY  ${rid}] No sources found. totalVectors=${totalVectors} durationMs=${ms}`
-  );
+      console.log(
+        `[QRY  ${rid}] No sources found. totalVectors=${totalVectors} durationMs=${ms}`
+      );
 
-  return res.json({
-    answer,
-    citations: [],
-    sources: [],
-    durationMs: ms,
-  });
-}
-
+      // Provide an embed cost estimate for the query itself
+      const embCost = estimateEmbeddingCost(query.length);
+      return res.json({
+        answer,
+        citations: [],
+        sources: [],
+        durationMs: ms,
+        usage: null,
+        costEstimate: {
+          generation: { inTok: 0, outTok: 0, inCost: 0, outCost: 0, total: 0 },
+          embedding: embCost,
+          totalUsd: embCost.cost,
+        },
+      });
+    }
 
     // Prompt Gemini
     const system = `
@@ -532,6 +625,7 @@ ${sources.map((s) => `[${s.num}] ${s.text}`).join("\n\n")}
     const tLLM = Date.now();
     let parsed = null;
     let raw = "";
+    let usage = null;
     try {
       const geminiRes = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${process.env.GOOGLE_API_KEY}`,
@@ -545,7 +639,15 @@ ${sources.map((s) => `[${s.num}] ${s.text}`).join("\n\n")}
       );
       raw = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
       parsed = parseModelJson(raw);
-      console.log(`[LLM  ${rid}] model=${MODEL} parsed=${!!parsed} durationMs=${Date.now() - tLLM}`);
+      usage = geminiRes.data?.usageMetadata || null;
+
+      console.log(
+        `[LLM  ${rid}] model=${MODEL} parsed=${!!parsed} durationMs=${
+          Date.now() - tLLM
+        } tokens: in=${usage?.promptTokenCount ?? "?"} out=${
+          usage?.candidatesTokenCount ?? "?"
+        } total=${usage?.totalTokenCount ?? "?"}`
+      );
     } catch (err) {
       console.error(`[LLM  ${rid}] FAILED`, err?.response?.data || err.message);
     }
@@ -560,11 +662,29 @@ ${sources.map((s) => `[${s.num}] ${s.text}`).join("\n\n")}
       ? parsed.citations.filter((c) => Array.isArray(c.sources))
       : [];
 
+    // Cost estimates (generation + query embedding)
+    const genCost = estimateGeminiCost(usage);
+    const embCost = estimateEmbeddingCost(query.length);
+    const costEstimate = {
+      generation: genCost,
+      embedding: embCost,
+      totalUsd: dollars((genCost.total || 0) + (embCost.cost || 0)),
+    };
+
     const durationMs = Date.now() - started;
     console.log(
-      `[QRY  ${rid}] DONE answerChars=${(answer || "").length} sourcesUsed=${sources.length} durationMs=${durationMs}`
+      `[QRY  ${rid}] DONE answerChars=${(answer || "").length} sourcesUsed=${sources.length} durationMs=${durationMs} ` +
+        `cost≈$${costEstimate.totalUsd} (gen:$${genCost.total} emb:$${embCost.cost})`
     );
-    res.json({ answer, citations, sources, durationMs });
+
+    res.json({
+      answer,
+      citations,
+      sources,
+      durationMs,
+      usage,
+      costEstimate,
+    });
   } catch (e) {
     const msg = e?.response?.data?.error?.message || e.message || "Query failed";
     console.error(`[QRY  ${rid}] ERROR`, msg);

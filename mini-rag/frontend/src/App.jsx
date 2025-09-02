@@ -11,9 +11,20 @@ export default function App() {
   const [answerHtml, setAnswerHtml] = useState("");
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [meta, setMeta] = useState({ ms: 0, tokens: 0, costUSD: 0 });
+  const [meta, setMeta] = useState({
+    ms: 0,
+    tokens: { in: 0, out: 0, total: 0 },
+    cost: { gen: 0, emb: 0, total: 0 }
+  });
   const [error, setError] = useState("");
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem("theme");
+    if (stored) return stored;
+    // auto-detect OS theme
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  });
   const [showDebug, setShowDebug] = useState(false);
   const [rawResponse, setRawResponse] = useState(null);
 
@@ -27,7 +38,55 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // keep theme in sync with OS if user hasn't explicitly toggled (optional)
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => {
+      const stored = localStorage.getItem("theme");
+      if (!stored) setTheme(mq.matches ? "dark" : "light");
+    };
+    mq.addEventListener?.("change", handler);
+    return () => mq.removeEventListener?.("change", handler);
+  }, []);
+
   const canAsk = useMemo(() => query.trim().length > 0 && !loading, [query, loading]);
+
+  // near other imports/state
+  const USD_INR = Number(process.env.REACT_APP_USD_INR || 85); // configurable FX, fallback 85
+
+  const [copied, setCopied] = useState(false);
+
+
+  // Dynamically increases decimals for tiny amounts
+  function formatINR(usd, { min = 2, max = 4 } = {}) {
+    const v = Number(usd);
+    if (!Number.isFinite(v)) return "—";
+    const inr = v * USD_INR;
+
+    const abs = Math.abs(inr);
+    let fractionDigits =
+      abs >= 1 ? 2 :
+        abs >= 0.1 ? 3 :
+          abs >= 0.01 ? 3 : 4; 
+    fractionDigits = Math.min(Math.max(fractionDigits, min), max);
+
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits
+    }).format(inr);
+  }
+
+
+  function copyAnswer() {
+    const txt = stripHtml(answerHtml);
+    navigator.clipboard.writeText(txt).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    }).catch(() => { });
+  }
+
 
   async function ask() {
     if (!canAsk) return;
@@ -49,18 +108,36 @@ export default function App() {
       const data = await res.json();
       setRawResponse(data);
 
-      const ms = Math.round(typeof data.duration === "number" ? data.duration : (performance.now() - t0));
-      const tokens = data?.usage?.tokens ?? data?.usage?.approx_tokens ?? 0;
-      const costUSD = data?.usage?.cost_usd ?? 0;
+      // timing (prefer server's durationMs)
+      const ms = Number.isFinite(data?.durationMs)
+        ? Math.round(data.durationMs)
+        : Math.round(performance.now() - t0);
 
+      // usage
+      const inTok = data?.usage?.promptTokenCount ?? 0;
+      const outTok = data?.usage?.candidatesTokenCount ?? 0;
+      const totalTok = data?.usage?.totalTokenCount ?? (inTok + outTok);
+
+
+// cost estimate (keep raw USD values)
+const genCost = Number(data?.costEstimate?.generation?.total);
+const embCost = Number(data?.costEstimate?.embedding?.cost);
+const totalCost = Number(data?.costEstimate?.totalUsd);
+
+
+      // answer -> HTML with citation anchors
       const html = data.answerHtml || linkifyCitations(escapeHtml(data.answer || "No answer."));
-      const srcs = Array.isArray(data.sources || data.contexts)
-        ? (data.sources || data.contexts).map(normalizeSource)
+      const srcs = Array.isArray(data.sources)
+        ? data.sources.map(normalizeSource)
         : [];
 
       setAnswerHtml(html);
       setSources(srcs);
-      setMeta({ ms, tokens, costUSD });
+      setMeta({
+        ms,
+        tokens: { in: inTok, out: outTok, total: totalTok },
+        cost: { gen: genCost, emb: embCost, total: totalCost }
+      });
     } catch (e) {
       setError(e?.message?.slice(0, 400) || "Unexpected error");
     } finally {
@@ -71,6 +148,7 @@ export default function App() {
   function normalizeSource(s, i) {
     if (typeof s === "string") {
       return {
+        num: i + 1,
         title: `Source #${i + 1}`,
         snippet: s,
         url: "",
@@ -81,13 +159,14 @@ export default function App() {
       };
     }
     return {
-      title: s.title || s.source || `Source #${i + 1}`,
-      snippet: s.snippet || s.text || "",
-      url: s.url || s.link || "",
-      section: s.section || s.heading || "",
+      num: s.num ?? (i + 1),
+      title: s.meta?.title || s.title || s.source || `Source #${i + 1}`,
+      snippet: s.text || s.snippet || "",
+      url: s.meta?.url || s.url || s.link || "",
+      section: s.meta?.section || s.section || s.heading || "",
       page: s.page,
       score: s.score ?? s.relevance_score,
-      position: s.position ?? i
+      position: s.meta?.chunk ?? s.position ?? i
     };
   }
 
@@ -95,10 +174,7 @@ export default function App() {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") ask();
   }
 
-  function copyAnswer() {
-    const txt = stripHtml(answerHtml);
-    navigator.clipboard.writeText(txt).catch(() => {});
-  }
+
 
   return (
     <div className="min-h-full grid grid-rows-[auto_1fr_auto]">
@@ -109,7 +185,7 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-white/5"
+            className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-white/10"
             onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             title="Toggle theme"
           >
@@ -118,7 +194,7 @@ export default function App() {
           <a
             href="https://github.com/Ascrion/mini-rag.git"
             target="_blank" rel="noreferrer"
-            className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-white/5"
+            className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-white/10"
             title="Open repo"
           >
             ⎋
@@ -129,17 +205,17 @@ export default function App() {
       {/* Content */}
       <main
         className="w-full"
-        style={{
-          background:
-            "var(--bg-grad), var(--tw-gradient-to)",
-        }}
+        style={{ background: "var(--bg-grad), var(--tw-gradient-to)" }}
       >
         <div className="mx-auto max-w-[1100px] px-4 py-6 grid gap-6 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* Main */}
           <section className="min-w-0">
             {/* Ask panel */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-panel dark:shadow-panelDark">
-              <h1 className="text-xl font-semibold mb-3">Ask your docs</h1>
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-panel dark:shadow-panelDark
+                text-slate-900 dark:text-slate-100">
+              <h1 className="text-xl font-semibold mb-3 text-slate-900 dark:text-slate-100">
+                Ask your docs
+              </h1>
 
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-start">
                 <textarea
@@ -149,7 +225,8 @@ export default function App() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={onKeyDown}
-                  className="min-h-[96px] max-h-[300px] w-full resize-y rounded-lg border border-slate-200 dark:border-slate-800 bg-transparent p-3 text-slate-900 dark:text-slate-100 outline-none"
+                  className="min-h-[96px] max-h-[300px] w-full resize-y rounded-lg border border-slate-200 dark:border-slate-800 bg-transparent p-3
+                 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/60"
                 />
                 <div className="flex gap-2">
                   <button
@@ -165,7 +242,7 @@ export default function App() {
                     onClick={() => setQuery("")}
                     disabled={loading || !query}
                     title="Clear"
-                    className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-60"
+                    className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/10 disabled:opacity-60"
                   >
                     ⟲
                   </button>
@@ -175,43 +252,60 @@ export default function App() {
 
             {/* Error */}
             {error && (
-              <div className="mt-4 rounded-xl border border-red-500/40 bg-red-50/50 dark:bg-red-500/10 p-4">
+              <div className="mt-4 rounded-xl border border-red-500/40 bg-red-50/60 dark:bg-red-500/10 p-4">
                 <strong>Request failed:</strong> {error}
               </div>
             )}
 
             {/* Answer */}
             {Boolean(answerHtml) && (
-              <div className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-panel dark:shadow-panelDark">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Answer</h2>
-                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                    <span className="rounded-full border border-slate-200 dark:border-slate-800 px-2 py-0.5">⏱ {meta.ms} ms</span>
+              <div className="mt-4 bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-panel dark:shadow-panelDark text-slate-900 dark:text-slate-100">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Answer</h2>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+                    <Badge>⏱ {meta.ms} ms</Badge>
+                    <Badge> in:{meta.tokens.in} · out:{meta.tokens.out} · total:{meta.tokens.total} </Badge>
+                    <Badge>
+                    cost: {formatINR(meta.cost?.total)}
+                    </Badge>
+
+                    <button
+                      onClick={copyAnswer}
+                      className="relative rounded-md border border-slate-200 dark:border-slate-800 px-2 py-1 hover:bg-slate-50 dark:hover:bg-white/10"
+                      title="Copy answer"
+                    >
+                      {copied ? "Copied ✓" : "Copy"}
+                    </button>
                   </div>
                 </div>
 
                 <div
-                  className="answer-body mt-2 text-[16px] leading-6"
+                  className="answer-body mt-3 text-[16px] leading-6"
                   dangerouslySetInnerHTML={{ __html: withAnchors(answerHtml) }}
                 />
 
-                {/* Sources */}
+                {/* Collapsible Sources & metadata (unchanged) */}
                 {sources.length > 0 && (
-                  <>
-                    <h3 className="mt-4 mb-1 font-semibold">Sources</h3>
-                    <ol className="pl-5 list-decimal">
+                  <details className="mt-4 group">
+                    <summary className="cursor-pointer select-none list-none text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 text-[11px]">i</span>
+                      Sources &amp; metadata
+                      <span className="text-slate-400 dark:text-slate-500 text-xs ml-1 group-open:hidden">[show]</span>
+                      <span className="text-slate-400 dark:text-slate-500 text-xs ml-1 hidden group-open:inline">[hide]</span>
+                    </summary>
+                    <ol className="mt-3 pl-5 list-decimal">
                       {sources.map((s, i) => (
                         <li key={i} id={`src-${i + 1}`} className="my-3">
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-slate-200 dark:border-slate-800 bg-blue-500/10 text-sm font-semibold">[{i + 1}]</span>
                             <span className="font-medium">{s.title}</span>
                             {typeof s.score === "number" && (
-                              <span className="text-xs text-slate-500 dark:text-slate-400 rounded-full border border-slate-200 dark:border-slate-800 px-2 py-0.5">
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 rounded-full border border-slate-200 dark:border-slate-800 px-2 py-0.5">
                                 {s.score.toFixed(3)}
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400 mt-1">
+                          <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
                             {s.section && <span>§ {s.section}</span>}
                             {Number.isFinite(s.page) && <span>p.{s.page}</span>}
                             <span>chunk #{s.position}</span>
@@ -222,15 +316,25 @@ export default function App() {
                             )}
                           </div>
                           {s.snippet && (
-                            <blockquote className="mt-2">{s.snippet}</blockquote>
+                            <blockquote className="mt-2 text-slate-800 dark:text-slate-200">{s.snippet}</blockquote>
                           )}
                         </li>
                       ))}
                     </ol>
-                  </>
+                  </details>
                 )}
 
-                {/* <details className="mt-2">
+                {/* Tiny toast for copy feedback (center bottom of card) */}
+                {copied && (
+                  <div className="pointer-events-none fixed left-1/2 -translate-x-1/2 bottom-8 z-50">
+                    <div className="rounded-full bg-slate-900/85 text-white dark:bg-white/90 dark:text-slate-900 px-3 py-1 text-xs shadow">
+                      Copied to clipboard
+                    </div>
+                  </div>
+                )}
+
+                {/* Debug */}
+                {/* <details className="mt-3">
                   <summary onClick={() => setShowDebug(v => !v)} className="cursor-pointer text-slate-500 dark:text-slate-400">
                     Debug
                   </summary>
@@ -245,7 +349,7 @@ export default function App() {
 
             {/* Placeholder */}
             {!answerHtml && !error && (
-              <div className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center text-slate-500 dark:text-slate-400 shadow-panel dark:shadow-panelDark">
+              <div className="mt-4 bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center text-slate-600 dark:text-slate-400 shadow-panel dark:shadow-panelDark">
                 <p>Ask a question to get an answer</p>
                 <p className="text-sm opacity-80">Powered by Gemini • Pinecone • Cohere</p>
               </div>
@@ -254,7 +358,7 @@ export default function App() {
 
           {/* Sidebar (sticky) */}
           <aside className="lg:sticky lg:top-20 h-fit min-w-0">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-panel dark:shadow-panelDark">
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-panel dark:shadow-panelDark">
               <Uploader apiBase={API} />
             </div>
           </aside>
@@ -272,7 +376,6 @@ export default function App() {
 }
 
 /* ===== little helpers (kept simple) ===== */
-
 function escapeHtml(str = "") {
   return str.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
@@ -286,5 +389,13 @@ function linkifyCitations(text = "") {
   return text.replace(/(?<!>)\[(\d+)\](?!<\/a>)/g, (_m, n) => `<a href="#src-${n}" class="cite">[${n}]</a>`);
 }
 function withAnchors(html = "") {
-  return html.replace(/(?<!>)\[(\d+)\](?!<\/a>)/g, (_m, n) => `<a href="#src-${n}" class="cite">[${n}]</a>`);
+  return html.replace(/(?<!>)\[(\d+)\](?!<\/a>)/g, (_m, n) => `<a href="#src-${n}" className="cite">[${n}]</a>`);
+}
+
+function Badge({ children }) {
+  return (
+    <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-white/10 px-2 py-0.5">
+      {children}
+    </span>
+  );
 }

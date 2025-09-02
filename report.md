@@ -87,13 +87,13 @@ POST /upsert
 
 ## To Do
 [x] Frontend 
-[] Inline citations and metadata
-[] cost estimates
-[] Handle No Answer Cases
-[] Request Timing and token display
+[x] Inline citations and metadata
+[x] Handle No Answer Cases
+[x] Request Timing and token display
+[x] cost estimates
 [] Hosting on Vercel
 [] README
-[] Trials QA for user guidance
+[] Documentation On README showing 5 Golden Cases
 
 ## 📦 Libraries Installed
 ```json

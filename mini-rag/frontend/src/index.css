@@ -17,3 +17,27 @@ body, #root { height: 100%; }
 .answer-body blockquote {
   @apply border-l-4 pl-3 py-2 rounded bg-blue-50/40 dark:bg-white/5 dark:border-blue-400/60;
 }
+
+/* index.css additions */
+
+:root {
+  --bg-grad: radial-gradient(1200px 600px at 50% -200px, rgba(59,130,246,.08), transparent 60%);
+}
+
+.dark:root {
+  --bg-grad: radial-gradient(1000px 500px at 50% -200px, rgba(59,130,246,.15), transparent 60%);
+}
+
+.answer-body a.cite {
+  text-decoration: none;
+  border-bottom: 1px dashed currentColor;
+  color: #2563eb; /* Tailwind blue-600 */
+}
+.dark .answer-body a.cite {
+  color: #60a5fa; /* blue-400 */
+}
+.answer-body blockquote {
+  border-left: 3px solid rgba(100,116,139,.3);
+  padding-left: .75rem;
+  margin: .25rem 0 0 0;
+}
