@@ -11,7 +11,9 @@
 You confirmed:
 - `/upsert` works → documents stored in Pinecone.  
 - `/query` works → retrieves, reranks, answers with citations.  
-
+- `/health` works -> ensure backend works
+- `/reset` works -> deletes all namespaces (page refresh needed to see changes)
+-  `/pc/namespaces & \pc\stats` works -> ensures pinecone works as itended
 ---
 
 ### Technologies Used
@@ -79,7 +81,6 @@ You confirmed:
                   │
                   ▼
               Final Answer
-              (with citations)
 
 ## API Endpoints
 API Endpoints
@@ -92,11 +93,12 @@ POST /upsert
 [x] Request Timing and token display
 [x] cost estimates
 [x] Hosting on Render
-[] README - Setup, Architecture, Resume Link
+[x] README - Setup, Resume Link
+[x] Architecture and Tech Stack
+[x] Index Config
 [] Documentation On README showing 5 Q/A Golden Pairs
-[] Index Config
-[] Remarks
-[] Attribution
+[x] Remarks
+[x] Attribution
 
 ## 📦 Libraries Installed
 ```json

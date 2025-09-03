@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-export default function Uploader({ apiBase = "http://localhost:3000" }) {
+export default function Uploader({ apiBase = "http://localhost:4000" }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -89,10 +89,10 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
     <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-panel dark:shadow-panelDark p-4">
       <div className="mb-3">
         <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-          Add Documents To Improve Accuracy
+          Add Documents
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          All documents go into the default index
+          Add document text into the text box.
         </p>
       </div>
 
@@ -110,7 +110,7 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
           disabled={busy || !text.trim()}
           className="flex-1 rounded-lg bg-gradient-to-b from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "Adding…" : "Add to Index"}
+          {busy ? "Adding…" : "Add Documents"}
         </button>
 
         <button

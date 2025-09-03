@@ -287,6 +287,7 @@ app.get("/", (_req, res) => {
   res.send("Mini RAG server is alive");
 });
 
+// Ensure server operation
 app.get("/health", async (_req, res) => {
   try {
     const stats = await index.describeIndexStats();
@@ -723,7 +724,7 @@ process.on("uncaughtException", (err) => {
 });
 
 // Run server on given port
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Mini RAG running on port ${PORT}`);
 });

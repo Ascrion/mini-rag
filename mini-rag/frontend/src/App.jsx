@@ -3,7 +3,7 @@ import "./index.css";
 import Uploader from "./Upload";
 
 // backend-link
-const API = (process.env.REACT_APP_API?.replace(/\/$/, "")) || "http://localhost:3000";
+const API = (process.env.REACT_APP_API?.replace(/\/$/, "")) || "http://localhost:4000";
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -359,13 +359,6 @@ export default function App() {
           </aside>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-center py-5">
-        <span>Mini-rag</span>
-        <span className="mx-2">•</span>
-        <span>API: <code>{API.replace(/^https?:\/\//, "")}</code></span>
-      </footer>
     </div>
   );
 }
