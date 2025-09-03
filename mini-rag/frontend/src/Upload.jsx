@@ -39,11 +39,10 @@ export default function Uploader({ apiBase = "http://localhost:4000" }) {
       const ms = data?.durationMs;
 
       setStatus(
-        `Added ${plural(n, "chunk")} to index${typeof ms === "number" ? ` in ${ms}ms` : ""}.`
+        `Added ${plural(n, "chunk")} to index${typeof ms === "number" ? ` in ${ms}ms` : ""
+        }`
       );
       setText("");
-
-      setTimeout(() => window.location.reload(), 600);
     } catch (e) {
       setStatus(`Error: ${e.message}`);
     } finally {
@@ -71,14 +70,16 @@ export default function Uploader({ apiBase = "http://localhost:4000" }) {
         : null;
       const ms = data?.durationMs;
 
-      const msg =
-        statusText === "deleted_all"
-          ? `All documents deleted${cleared ? ` (namespaces: ${cleared})` : ""}${typeof ms === "number" ? ` in ${ms}ms` : ""}.`
-          : `Reset attempted, but some data remains. See server logs.${typeof ms === "number" ? ` (${ms}ms)` : ""}`;
-      setStatus(msg);
-
       if (statusText === "deleted_all") {
-        setTimeout(() => window.location.reload(), 600);
+        setStatus(
+          `All documents deleted${cleared ? ` (namespaces: ${cleared})` : ""
+          }${typeof ms === "number" ? ` in ${ms}ms` : ""}. You can add new documents now.`
+        );
+      } else {
+        setStatus(
+          `Reset attempted, but some data remains. See server logs.${typeof ms === "number" ? ` (${ms}ms)` : ""
+          }`
+        );
       }
     } catch (e) {
       setStatus(`Error: ${e.message}`);

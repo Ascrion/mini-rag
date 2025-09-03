@@ -141,6 +141,19 @@ export default function App() {
       setLoading(false);
     }
   }
+  // for wrong responses
+  function askAgain() {
+    requestAnimationFrame(() => {
+      if (taRef.current) {
+        taRef.current.focus();
+        const el = taRef.current;
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }
+
 
   function normalizeSource(s, i) {
     if (typeof s === "string") {
@@ -278,6 +291,18 @@ export default function App() {
                   className="answer-body mt-3 text-[16px] leading-6"
                   dangerouslySetInnerHTML={{ __html: withAnchors(answerHtml) }}
                 />
+                {/* Ask again */}
+                <div className="mt-4 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <span>Not the answer you wanted?</span>
+                  <button
+                    onClick={askAgain}
+                    className="rounded-md border border-slate-200 dark:border-slate-800 px-2 py-1 hover:bg-slate-50 dark:hover:bg-white/10"
+                    title="Refine your question"
+                  >
+                    Ask again
+                  </button>
+                </div>
+
 
                 {/* Sources and metadata */}
                 {sources.length > 0 && (
