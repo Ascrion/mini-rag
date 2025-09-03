@@ -20,8 +20,7 @@ pids
 
 # Build output (React)
 frontend/build/
-
-./mini-rag/server_curl_tests.txt
+mini-rag/server_curl_tests.txt
 
 # Cache
 .cache/
