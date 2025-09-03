@@ -344,8 +344,8 @@ export default function App() {
             {/* Placeholder */}
             {!answerHtml && !error && (
               <div className="mt-4 bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center text-slate-600 dark:text-slate-400 shadow-panel dark:shadow-panelDark">
-                <p>Ask a question to get an answer</p>
-                <p className="text-sm opacity-80">Please wait 15 seconds on initial boot for backend to start</p>
+                <p>Ask a question about your document</p>
+                <p className="text-sm opacity-80">Please wait 30-45 seconds on initial boot for backend to start</p>
                 <p className="text-sm opacity-80">Powered by Gemini • Pinecone • Cohere</p>
               </div>
             )}

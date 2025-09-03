@@ -36,32 +36,7 @@
     - Ensures the top docs passed to Gemini are the most useful.
     - Improves precision and reduces hallucination risk.
 
-```
-          ┌─────────────┐
-          │   Frontend  │  (React UI)
-          └──────┬──────┘
-                 │
-        HTTP (CORS, JSON)
-                 │
-          ┌──────▼──────┐
-          │   Backend   │  (Express.js)
-          │  server.js  │
-          └──────┬──────┘
-   ┌─────────────┼─────────────────┐
-   │             │                 │
-┌──▼──-┐    ┌─────▼─────┐    ┌─────▼─────┐
-│Gemini│    │  Pinecone │    │  Cohere   │
-│Embed │    │  VectorDB │    │  Rerank   │
-└──┬───┘    └─────┬─────┘    └─────┬─────┘
-   │        ┌─────▼─────┐          │
-   └───────►│Gemini LLM │◄─────────┘
-            │ 1.5-Flash │
-            └─────┬─────┘
-                  │
-                  ▼
-              Final Answer
-
-```             
+![alt text](image.png)         
 
 ### Pinecone Index Config
 - Index name: Fetched from PINECONE_INDEX in .env
@@ -177,6 +152,6 @@
 
 ### Attribution:
 All external tools and APIs were used via their official SDKs and documentation.
-- https://ai.google.dev/?utm_source=chatgpt.com
-- https://www.pinecone.io/?utm_source=chatgpt.com
-- https://cohere.com/?utm_source=chatgpt.com
+- https://ai.google.dev
+- https://www.pinecone.io
+- https://cohere.com
