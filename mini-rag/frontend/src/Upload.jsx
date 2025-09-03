@@ -9,6 +9,7 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
     return `${n} ${n === 1 ? s : p}`;
   }
 
+  // Insert documents to Pinecone
   async function upsert() {
     if (!text.trim()) return;
     setBusy(true);
@@ -34,7 +35,6 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Upsert failed");
 
-      // Prefer new fields; fall back to older "count"
       const n =
         data?.totalChunks ??
         data?.totalVectors ??
@@ -53,6 +53,7 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
     }
   }
 
+  // Delete all stored documents
   async function resetIndex() {
     if (!confirm("Reset all documents?")) return;
     setBusy(true);
@@ -66,7 +67,6 @@ export default function Uploader({ apiBase = "http://localhost:3000" }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
 
-      // Show what actually happened
       const statusText = data?.status || "ok";
       const cleared = Array.isArray(data?.namespaces_cleared)
         ? data.namespaces_cleared.join(", ")

@@ -91,7 +91,7 @@ POST /upsert
 [x] Handle No Answer Cases
 [x] Request Timing and token display
 [x] cost estimates
-[] Hosting on Vercel
+[x] Hosting on Render
 [] README - Setup, Architecture, Resume Link
 [] Documentation On README showing 5 Q/A Golden Pairs
 [] Index Config

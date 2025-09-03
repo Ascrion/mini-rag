@@ -2,11 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./index.css";
 import Uploader from "./Upload";
 
-// backend link
+// backend-link
 const API = (process.env.REACT_APP_API?.replace(/\/$/, "")) || "http://localhost:3000";
 
 export default function App() {
-  // simple state
   const [query, setQuery] = useState("");
   const [answerHtml, setAnswerHtml] = useState("");
   const [sources, setSources] = useState([]);
@@ -30,7 +29,7 @@ export default function App() {
 
   const taRef = useRef(null);
 
-  // toggle theme
+  // toggle-theme
   useEffect(() => {
     const root = document.documentElement;
     if (theme === "dark") root.classList.add("dark");
@@ -38,7 +37,7 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  // keep theme in sync with OS if user hasn't explicitly toggled (optional)
+  // use default os theme
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
@@ -51,13 +50,11 @@ export default function App() {
 
   const canAsk = useMemo(() => query.trim().length > 0 && !loading, [query, loading]);
 
-  // near other imports/state
-  const USD_INR = Number(process.env.REACT_APP_USD_INR || 85); // configurable FX, fallback 85
+  // USD to INR Converter
+  const USD_INR = Number(process.env.REACT_APP_USD_INR || 88);
 
   const [copied, setCopied] = useState(false);
 
-
-  // Dynamically increases decimals for tiny amounts
   function formatINR(usd, { min = 2, max = 4 } = {}) {
     const v = Number(usd);
     if (!Number.isFinite(v)) return "—";
@@ -67,7 +64,7 @@ export default function App() {
     let fractionDigits =
       abs >= 1 ? 2 :
         abs >= 0.1 ? 3 :
-          abs >= 0.01 ? 3 : 4; 
+          abs >= 0.01 ? 3 : 4;
     fractionDigits = Math.min(Math.max(fractionDigits, min), max);
 
     return new Intl.NumberFormat("en-IN", {
@@ -108,7 +105,7 @@ export default function App() {
       const data = await res.json();
       setRawResponse(data);
 
-      // timing (prefer server's durationMs)
+      // timing
       const ms = Number.isFinite(data?.durationMs)
         ? Math.round(data.durationMs)
         : Math.round(performance.now() - t0);
@@ -119,13 +116,13 @@ export default function App() {
       const totalTok = data?.usage?.totalTokenCount ?? (inTok + outTok);
 
 
-// cost estimate (keep raw USD values)
-const genCost = Number(data?.costEstimate?.generation?.total);
-const embCost = Number(data?.costEstimate?.embedding?.cost);
-const totalCost = Number(data?.costEstimate?.totalUsd);
+      // cost estimate 
+      const genCost = Number(data?.costEstimate?.generation?.total);
+      const embCost = Number(data?.costEstimate?.embedding?.cost);
+      const totalCost = Number(data?.costEstimate?.totalUsd);
 
 
-      // answer -> HTML with citation anchors
+      // answer
       const html = data.answerHtml || linkifyCitations(escapeHtml(data.answer || "No answer."));
       const srcs = Array.isArray(data.sources)
         ? data.sources.map(normalizeSource)
@@ -173,8 +170,6 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
   function onKeyDown(e) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") ask();
   }
-
-
 
   return (
     <div className="min-h-full grid grid-rows-[auto_1fr_auto]">
@@ -266,7 +261,7 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
                     <Badge>⏱ {meta.ms} ms</Badge>
                     <Badge> in:{meta.tokens.in} · out:{meta.tokens.out} · total:{meta.tokens.total} </Badge>
                     <Badge>
-                    cost: {formatINR(meta.cost?.total)}
+                      cost: {formatINR(meta.cost?.total)}
                     </Badge>
 
                     <button
@@ -284,7 +279,7 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
                   dangerouslySetInnerHTML={{ __html: withAnchors(answerHtml) }}
                 />
 
-                {/* Collapsible Sources & metadata (unchanged) */}
+                {/* Sources and metadata */}
                 {sources.length > 0 && (
                   <details className="mt-4 group">
                     <summary className="cursor-pointer select-none list-none text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
@@ -324,7 +319,6 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
                   </details>
                 )}
 
-                {/* Tiny toast for copy feedback (center bottom of card) */}
                 {copied && (
                   <div className="pointer-events-none fixed left-1/2 -translate-x-1/2 bottom-8 z-50">
                     <div className="rounded-full bg-slate-900/85 text-white dark:bg-white/90 dark:text-slate-900 px-3 py-1 text-xs shadow">
@@ -357,7 +351,7 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
             )}
           </section>
 
-          {/* Sidebar (sticky) */}
+          {/* Sidebar */}
           <aside className="lg:sticky lg:top-20 h-fit min-w-0">
             <div className="bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-panel dark:shadow-panelDark">
               <Uploader apiBase={API} />
@@ -376,7 +370,7 @@ const totalCost = Number(data?.costEstimate?.totalUsd);
   );
 }
 
-/* ===== little helpers (kept simple) ===== */
+// code helpers
 function escapeHtml(str = "") {
   return str.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
@@ -385,7 +379,6 @@ function stripHtml(html = "") {
   tmp.innerHTML = html;
   return tmp.textContent || tmp.innerText || "";
 }
-// turn "[1]" into anchors unless it's already inside a link
 function linkifyCitations(text = "") {
   return text.replace(/(?<!>)\[(\d+)\](?!<\/a>)/g, (_m, n) => `<a href="#src-${n}" class="cite">[${n}]</a>`);
 }

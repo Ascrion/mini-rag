@@ -10,7 +10,7 @@ import { randomUUID } from "crypto";
 
 dotenv.config();
 
-/* --------------------------- Boot / Env Logging --------------------------- */
+// ENV Initialization 
 const REQUIRED_ENV = [
   "PINECONE_API_KEY",
   "PINECONE_INDEX",
@@ -32,24 +32,21 @@ if (missing.length) {
 }
 console.log("[BOOT] NODE_ENV:", process.env.NODE_ENV || "(not set)");
 
-/* ----------------------------- Express Setup ----------------------------- */
+// Express Handling 
 const app = express();
 
-// Allow your local dev + deployed frontend
 const allowedOrigins = [
-  /^https?:\/\/localhost(?::\d+)?$/,           // http(s)://localhost[:port]
-  "https://mini-rag-frontend.onrender.com",    // your Render frontend
+  /^https?:\/\/localhost(?::\d+)?$/,           
+  "https://mini-rag-frontend.onrender.com",  
 ];
 
-// Safe origin checker for strings + regex
 function isAllowedOrigin(origin) {
-  if (!origin) return true; // server-to-server or curl
+  if (!origin) return true; 
   return allowedOrigins.some((entry) =>
     typeof entry === "string" ? entry === origin : entry.test(origin)
   );
 }
 
-// Central CORS options
 const corsOptions = {
   origin: (origin, cb) => {
     if (isAllowedOrigin(origin)) return cb(null, true);
@@ -61,15 +58,14 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
-// Apply CORS early (before body parser / limiter)
 app.use(cors(corsOptions));
 
-// Respond to preflight quickly
+// CORS Pre-flight response
 app.options("*", cors(corsOptions));
 
 app.use(bodyParser.json({ limit: "2mb" }));
 
-// Simple requestId + logger middleware
+// Request Handling
 app.use((req, _res, next) => {
   req.requestId = randomUUID();
   req._startedAt = Date.now();
@@ -87,7 +83,7 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Rate limiter — skip preflight OPTIONS
+// Rate limiter - 30/min per IP
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -103,7 +99,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 
-// On response finish, log total duration
+// Response time logs
 app.use((req, res, next) => {
   const end = res.end;
   res.end = function (...args) {
@@ -116,14 +112,14 @@ app.use((req, res, next) => {
   next();
 });
 
-/* ------------------------------ Pinecone Init ---------------------------- */
+// Pinecone connection
 console.log("[PINECONE] Initializing client…");
 const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
 const indexName = process.env.PINECONE_INDEX;
 const index = pc.index(indexName);
 console.log("[PINECONE] Connected to index:", indexName);
 
-/* --------------------------------- Utils -------------------------------- */
+// Data Handling
 function chunkText(text, chunkSize = 1000, overlap = 150) {
   const chunks = [];
   let start = 0;
@@ -191,12 +187,12 @@ function parseModelJson(raw) {
   }
 }
 
-/* ------------------------ Cost / Usage Helpers --------------------------- */
+// Cost Calculator
 function dollars(n) {
-  return Math.round((Number(n) || 0) * 10000) / 10000; // 4dp
+  return Math.round((Number(n) || 0) * 10000) / 10000;
 }
 
-// from Gemini generateContent usageMetadata
+// gemini UsageData (tokens)
 function estimateGeminiCost(usage) {
   const inPer1k = Number(process.env.GEMINI_INPUT_USD_PER_1K || 0);
   const outPer1k = Number(process.env.GEMINI_OUTPUT_USD_PER_1K || 0);
@@ -213,7 +209,7 @@ function estimateGeminiCost(usage) {
   };
 }
 
-// crude estimate for embeddings (Gemini embed API doesn’t return token usage)
+// embedding estimate
 function estimateEmbeddingCost(charCount) {
   const per1k = Number(process.env.EMBEDDING_USD_PER_1K || 0);
   const approxTokens = Math.ceil((charCount || 0) / 4); // ~4 chars/token heuristic
@@ -221,8 +217,7 @@ function estimateEmbeddingCost(charCount) {
   return { approxTokens, cost: dollars(cost) };
 }
 
-/* ------------------------------- Reranker ------------------------------- */
-// Cohere Reranker (robust): accepts string[] or {text:string}[]
+// Cohere Reranker 
 async function rerank(query, documents, requestId = "") {
   if (!process.env.COHERE_API_KEY) {
     console.log(`[RER  ${requestId}] Cohere API key not set — skipping rerank`);
@@ -267,7 +262,6 @@ async function rerank(query, documents, requestId = "") {
 
     const reordered = results.map((r) => norm[r.index]?._orig).filter(Boolean);
 
-    // Append leftovers if Cohere returned fewer
     if (reordered.length < documents.length) {
       const used = new Set(reordered);
       for (const d of documents) if (!used.has(d)) reordered.push(d);
@@ -288,7 +282,7 @@ async function rerank(query, documents, requestId = "") {
   }
 }
 
-/* --------------------------------- Routes -------------------------------- */
+// Routing
 app.get("/", (_req, res) => {
   res.send("Mini RAG server is alive");
 });
@@ -308,7 +302,7 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-// Upsert documents into "default" namespace (with purge-by-docId first)
+// Upsert documents into namespaces
 app.post("/upsert", async (req, res) => {
   const rid = req.requestId;
   const t0 = Date.now();
@@ -335,7 +329,7 @@ app.post("/upsert", async (req, res) => {
       const docId = String(doc.id);
       console.log(`[UPS  ${rid}] Purging old vectors for docId="${docId}"`);
       try {
-        // Modern helper if available
+        
         if (typeof ns.deleteMany === "function") {
           await ns.deleteMany({ filter: { docId: { $eq: docId } } });
         } else {
@@ -410,7 +404,7 @@ app.post("/upsert", async (req, res) => {
   }
 });
 
-// Reset: wipe root "" and every listed namespace; verify with polling
+// Reset all namespaces
 app.post("/reset", async (req, res) => {
   const rid = req.requestId;
   const t0 = Date.now();
@@ -437,10 +431,10 @@ app.post("/reset", async (req, res) => {
 
   try {
     const stats = await index.describeIndexStats();
-    const listed = Object.keys(stats?.namespaces || {}); // may or may not include ""
+    const listed = Object.keys(stats?.namespaces || {}); 
     const candidates = new Set(listed);
-    candidates.add(""); // root (default-no-namespace)
-    candidates.add("default"); // your active ns
+    candidates.add(""); // 
+    candidates.add("default");
 
     console.log(
       `[RST  ${rid}] Namespaces (pre):`,
@@ -495,7 +489,7 @@ app.post("/reset", async (req, res) => {
   }
 });
 
-// Quick namespace visibility
+// Check all namespaces
 app.get("/pc/namespaces", async (req, res) => {
   const rid = req.requestId;
   try {
@@ -511,7 +505,7 @@ app.get("/pc/namespaces", async (req, res) => {
   }
 });
 
-// Same as above but dedicated
+// Stats
 app.get("/pc/stats", async (req, res) => {
   const rid = req.requestId;
   try {
@@ -523,11 +517,7 @@ app.get("/pc/stats", async (req, res) => {
   }
 });
 
-/**
- * POST /query
- * Body: { query: string, topK?: number }
- * Returns: { answer, citations, sources, durationMs, usage?, costEstimate? }
- */
+// Query (ask LLM questions)
 app.post("/query", async (req, res) => {
   const rid = req.requestId;
   const started = Date.now();
@@ -547,7 +537,7 @@ app.post("/query", async (req, res) => {
       }"`
     );
 
-    // Embed the query
+    // query embedding
     const tEmb = Date.now();
     const queryEmbedding = await embedText(query, rid);
     console.log(
@@ -556,7 +546,7 @@ app.post("/query", async (req, res) => {
       }`
     );
 
-    // Retrieve from Pinecone
+    // Pinecone Retreival
     const tPine = Date.now();
     const search = await index.namespace("default").query({
       topK,
@@ -568,7 +558,7 @@ app.post("/query", async (req, res) => {
       `[QRY  ${rid}] Pinecone matches=${search?.matches?.length || 0} durationMs=${pineMs}`
     );
 
-    // Build structured sources
+    // Source handling
     let sources = (search?.matches || [])
       .map((m, i) => ({
         num: i + 1,
@@ -584,17 +574,16 @@ app.post("/query", async (req, res) => {
       }))
       .filter((s) => s.text);
 
-    // Optional rerank
+    // Re-rank
     const before = sources.length;
     sources = await rerank(query, sources, rid);
     sources = sources.map((s, i) => ({ ...s, num: i + 1 }));
     console.log(`[QRY  ${rid}] Rerank in/out=${before}→${sources.length}`);
 
-    // If no results (two-path messaging)
     if (sources.length === 0) {
       const ms = Date.now() - started;
 
-      // Check if index is completely empty
+      // Check document existence for no document provided case
       let totalVectors = 0;
       try {
         const stats = await index.describeIndexStats();
@@ -615,7 +604,7 @@ app.post("/query", async (req, res) => {
         `[QRY  ${rid}] No sources found. totalVectors=${totalVectors} durationMs=${ms}`
       );
 
-      // Provide an embed cost estimate for the query itself
+      // Query cost estimate
       const embCost = estimateEmbeddingCost(query.length);
       return res.json({
         answer,
@@ -631,7 +620,7 @@ app.post("/query", async (req, res) => {
       });
     }
 
-    // Prompt Gemini
+    // Gemini Default prompt to adhere to expected structure
     const system = `
 You are a careful assistant. Answer ONLY using the numbered SOURCES provided.
 Every factual sentence MUST include citation markers like [1] or [1][3].
@@ -725,7 +714,7 @@ ${sources.map((s) => `[${s.num}] ${s.text}`).join("\n\n")}
   }
 });
 
-/* ---------------------------- Process-level logs ------------------------- */
+// Process Log handlers
 process.on("unhandledRejection", (reason) => {
   console.error("[FATAL] Unhandled Rejection:", reason);
 });
@@ -733,7 +722,7 @@ process.on("uncaughtException", (err) => {
   console.error("[FATAL] Uncaught Exception:", err);
 });
 
-/* --------------------------------- Listen -------------------------------- */
+// Run server on given port
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Mini RAG running on port ${PORT}`);
