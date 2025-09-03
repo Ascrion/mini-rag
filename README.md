@@ -2,17 +2,19 @@
 
 ### Live URLs
 - **Website:** https://mini-rag-frontend.onrender.com  
-    - (first initialization needs 15 seconds to cold start the backend)
+    - (first initialization needs 30~45 seconds to cold start the backend)
 - **Github:** https://github.com/Ascrion/mini-rag.git
 - **Resume:** [G-Drive Link](https://drive.google.com/file/d/1z1Cym6jNNaoXG-yy4wx9A50EMKwxGym7/view?usp=sharing)
 
 ### Introduction
-**mini-rag:** A Gemini + Pinecone + Cohere based Retreival-Augmented Generation pipeline that:
-    - Retrieves relevant information from your uploaded documents.
-    - Augments the query with those docs.
-    - Generates an answer grounded in real sources, with inline citations.
-    - Documents are split into ~1,000-token chunks with 15% overlap (~150 tokens)
-    - Shows reponse timing, token usage and cost estimates.
+
+**mini-rag:** A Gemini + Pinecone + Cohere based Retrieval-Augmented Generation pipeline that:   
+
+ - Retrieves relevant information from your uploaded documents.   
+- Augments the query with those docs.
+- Generates an answer grounded in real sources, with inline citations.    
+- Documents are split into ~1,000-token chunks with 15% overlap (~150 tokens)    
+- Shows response timing, token usage and cost estimates.    
 
 ### Architecture and Tech Stack
 1. Node + Express (Backend)
@@ -45,23 +47,25 @@
 - Namespace: "default"
 - Deployment: Serverless, AWS us-east-1
 - Metadata per vector:
+```json
 {
   "text": "<chunk text>",
   "docId": "<original doc id>",
-  "chunk": <number>,
+  "chunk": 1,
   "title": "<optional>",
   "url": "<optional>",
   "source": "<optional>",
   "section": "<optional>",
   "position": "<optional>"
 }
+```
 
 ### Golden Q/A Pairs 
 **Test Document Text:** 
     Mini-RAG Project Documentation
 
     Overview:  
-    Mini-RAG is a retrieval-augmented generation system built with Gemini, Pinecone, and Cohere. It retrieves relevant document chunks, reranks them, and generates answers with inline citations.  
+    Mini-RAG is a Retrieval-Rugmented generation system built with Gemini, Pinecone, and Cohere. It retrieves relevant document chunks, reranks them, and generates answers with inline citations.  
 
     Architecture:  
     1. Backend: Node.js + Express server, connects to AI services and handles routes.  
@@ -75,7 +79,7 @@
     Documents are split into ~1,000-token chunks with ~15% overlap. Metadata includes text, docId, chunk, title, section, and position for traceability.  
 
     Hosting:  
-    The project is deployed on Render (free tier). Cold starts may take ~15 seconds.  
+    The project is deployed on Render (free tier). Cold starts may take ~30-45 seconds.  
 
     Future Improvements:  
     - Migrate to Cohere production API.  
@@ -93,7 +97,7 @@
 4. Explain data pipeline flow in detail.
     - The Mini-RAG system's data pipeline begins with document chunking into approximately 1,000-token segments with roughly 15% overlap [1]. Metadata such as text, docId, chunk, title, section, and position are included for traceability [1]. A Node.js and Express server backend connects to AI services and manages routes [1]. Gemini embedding-001 generates 768-dimensional embeddings [1], which are stored in a Pinecone vector database deployed serverlessly in AWS us-east-1 [1]. Pinecone performs cosine similarity search to retrieve relevant chunks [1], which are then reranked by the Cohere Rerank API [1]. Finally, the Gemini-1.5-Flash LLM generates answers with inline citations based on the reranked chunks [1]. A React frontend handles text uploads, querying, and answer display [1].
 5. How long can cold starts take on Render hosting?
-    - Cold starts on Render hosting may take approximately 15 seconds. [1]
+    - Cold starts on Render hosting may take approximately 30-45 seconds. [1]
 
 | Question                                         | Time (ms) | I/P Tokens | O/P Tokens | Cost   | Accuracy & Notes|
 | ------------------------------------------------ | --------- | ---------- | ---------- | ------ | --------------- |
@@ -139,15 +143,15 @@
     - See the answer with inline citations [1], [2] in answer section.
 
 ### Remarks:
-    - This project implements a basic production ready RAG Pipeline.
-    - Documents are split into 1,000-token chunks to keep embedding costs low while maintaining enough context window
-    - 150 token overlap reduces risk of losing information at chunk boundaries. 
-    - Due to the small influx of requests, no rate-limits were breached
-    - Future Improvements:
-        - Move to Cohere Production API from trial API as it is the most rate-limited section of the pipleline.
-        - Separate Databases for stoing namespaces per user.
-        - Move to paid render plans / serverless functions to ensure 24*7 uptime
-        - Enter documents such as PDFs inplace of just plain text.
+- This project implements a basic production ready RAG Pipeline.
+- Documents are split into 1,000-token chunks to keep embedding costs low while maintaining enough context window
+- 150 token overlap reduces risk of losing information at chunk boundaries. 
+- Due to the small influx of requests, no rate-limits were breached
+- Future Improvements:
+    - Move to Cohere Production API from trial API as it is the most rate-limited section of the pipeline.
+    - Separate Databases for storing namespaces per user.
+    - Move to paid render plans / serverless functions to ensure 24*7 uptime
+    - Enter documents such as PDFs inplace of just plain text.
 
 ### Attribution:
 All external tools and APIs were used via their official SDKs and documentation.
