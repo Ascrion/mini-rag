@@ -35,7 +35,7 @@
     - Takes the retrieved chunks and re-orders them by relevance to the query.
     - Ensures the top docs passed to Gemini are the most useful.
     - Improves precision and reduces hallucination risk.
-
+`
           ┌─────────────┐
           │   Frontend  │  (React UI)
           └──────┬──────┘
@@ -59,6 +59,7 @@
                   │
                   ▼
               Final Answer
+`
 
 ### Pinecone Index Config
 - Index name: Fetched from PINECONE_INDEX in .env
