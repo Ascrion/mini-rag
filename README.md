@@ -97,12 +97,11 @@
 
 | Question                                         | Time (ms) | I/P Tokens | O/P Tokens | Cost   | Accuracy & Notes|
 | ------------------------------------------------ | --------- | ---------- | ---------- | ------ | --------------- |
-| Which vector database is used in Mini-RAG?       | 2228      | 490        | 71         | ₹0.035 | ✓               |
-| What model is used for embeddings?               | 2547      | 487        | 91         | ₹0.035 | ✓               |
-| What strategy is used for chunking documents?    | 2062      | 489        | 89         | ₹0.035 | ✓               |
-| Explain data pipeline flow in detail.            | 5167      | 486        | 568        | ₹0.097 | ✓               |
-| How long can cold starts take on Render hosting? | 1916      | 491        | 69         | ₹0.026 | ✓               |
-
+| Which vector database is used in Mini-RAG?       | 2228      | 490        | 71         | ₹0.035 |Correct answer   |
+| What model is used for embeddings?               | 2547      | 487        | 91         | ₹0.035 |Correct answer   |
+| What strategy is used for chunking documents?    | 2062      | 489        | 89         | ₹0.035 |Correct answer   |
+| Explain data pipeline flow in detail.            | 5167      | 486        | 568        | ₹0.097 |Correct answer   |
+| How long can cold starts take on Render hosting? | 1916      | 491        | 69         | ₹0.026 |Correct answer   |
 **Result:**
 - Accuracy: 100% .
 - Avg Latency: ~2.8s
@@ -112,26 +111,26 @@
 ### Setup Process
 
 1. Clone the repository
-    `
+    ```
     git clone https://github.com/Ascrion/mini-rag.git
     cd mini-rag
-    `
+    ```
 
 2. Backend Setup 
     - Enter your API keys to the .env file
     - Runs at http://localhost:4000 by default
-    `
+    ```
     npm install
     cp .env.example .env 
     node server.js
-    ` 
+    ```
 3. Frontend setup 
     - Runs at http://localhost:3000 by default
-    `
+    ```
     cd frontend
-    npm install 
-    npm start 
-    `
+    npm install    
+    npm start    
+    ```
 4. Usage 
     - Open frontend in your browser
     - Insert document text in Add Documents section
