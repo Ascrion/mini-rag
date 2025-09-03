@@ -94,7 +94,7 @@
     6. LLM: Gemini-1.5-Flash for generating answers with citations.  
 
     Chunking Strategy:  
-    Documents are split into ~1,000-token chunks with ~10% overlap. Metadata includes text, docId, chunk, title, section, and position for traceability.  
+    Documents are split into ~1,000-token chunks with ~15% overlap. Metadata includes text, docId, chunk, title, section, and position for traceability.  
 
     Hosting:  
     The project is deployed on Render (free tier). Cold starts may take ~15 seconds.  
@@ -106,7 +106,30 @@
 
 **Questions:**
 
-1. 
+1. Which vector database is used in Mini-RAG?
+    - Answer: Mini-RAG uses Pinecone as its vector database [1].
+2. What model is used for embeddings?
+    - The Mini-RAG project uses Gemini embedding-001 (768-dim) for embeddings [1].
+3. What strategy is used for chunking documents?
+    - Documents are split into approximately 1,000-token chunks with about 15% overlap [1].
+4. Explain data pipeline flow in detail.
+    - The Mini-RAG system's data pipeline begins with document chunking into approximately 1,000-token segments with roughly 15% overlap [1]. Metadata such as text, docId, chunk, title, section, and position are included for traceability [1]. A Node.js and Express server backend connects to AI services and manages routes [1]. Gemini embedding-001 generates 768-dimensional embeddings [1], which are stored in a Pinecone vector database deployed serverlessly in AWS us-east-1 [1]. Pinecone performs cosine similarity search to retrieve relevant chunks [1], which are then reranked by the Cohere Rerank API [1]. Finally, the Gemini-1.5-Flash LLM generates answers with inline citations based on the reranked chunks [1]. A React frontend handles text uploads, querying, and answer display [1].
+5. How long can cold starts take on Render hosting?
+    - Cold starts on Render hosting may take approximately 15 seconds. [1]
+
+| Question                                         | Time (ms) | I/P Tokens | O/P Tokens | Cost   | Accuracy & Notes|
+| ------------------------------------------------ | --------- | ---------- | ---------- | ------ | --------------- |
+| Which vector database is used in Mini-RAG?       | 2228      | 490        | 71         | ₹0.035 | ✓               |
+| What model is used for embeddings?               | 2547      | 487        | 91         | ₹0.035 | ✓               |
+| What strategy is used for chunking documents?    | 2062      | 489        | 89         | ₹0.035 | ✓               |
+| Explain data pipeline flow in detail.            | 5167      | 486        | 568        | ₹0.097 | ✓               |
+| How long can cold starts take on Render hosting? | 1916      | 491        | 69         | ₹0.026 | ✓               |
+
+**Result:**
+- Accuracy: 100% .
+- Avg Latency: ~2.8s
+- Avg Tokens: ~489 input, ~178 output.
+- Avg Cost: ~₹0.046 per query.
 
 ### Setup Process
 
