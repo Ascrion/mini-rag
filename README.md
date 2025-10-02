@@ -4,7 +4,7 @@
 - **Website:** https://mini-rag-frontend.onrender.com  
     - (first initialization needs 30~45 seconds to cold start the backend)
 
-    ![Website Preview](web-ss.png)
+    ![Website Preview](website-preview.png)
 
 - **Github:** https://github.com/Ascrion/mini-rag.git
 - **Resume:** [G-Drive Link](https://drive.google.com/file/d/1z1Cym6jNNaoXG-yy4wx9A50EMKwxGym7/view?usp=sharing)
