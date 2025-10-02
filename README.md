@@ -111,7 +111,7 @@
 ### Setup Process
 
 1. Clone the repository
-    ```
+    ```bash
     git clone https://github.com/Ascrion/mini-rag.git
     cd mini-rag
     ```
@@ -119,14 +119,14 @@
 2. Backend Setup 
     - Enter your API keys to the .env file
     - Runs at http://localhost:4000 by default
-    ```
+    ```bash
     npm install
     cp .env.example .env 
     node server.js
     ```
 3. Frontend setup 
     - Runs at http://localhost:3000 by default
-    ```
+    ```bash
     cd frontend
     npm install    
     npm start    

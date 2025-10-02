@@ -1,0 +1,23 @@
+# Add doc
+curl -i -X POST http://localhost:4000/upsert \
+  -H "Content-Type: application/json" \
+  -d '{"docs":[{"id":"doc1","title":"User Input","text":"RAG stands for Retrieval-Augmented Generation. It retrieves relevant chunks from a vector DB and feeds them to an LLM."}]}'
+
+# Check stats (should show default with vectorCount > 0)
+curl -s http://localhost:4000/pc/stats | jq
+
+# Query (should return [1])
+curl -s -X POST http://localhost:4000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What is RAG?"}' | jq
+
+# Reset all 
+curl -s -X POST http://localhost:4000/reset | jq
+
+# Verify stats (should show {} or no "default")
+curl -s http://localhost:4000/pc/stats | jq
+
+# Query again (should say no answer; sources: [])
+curl -s -X POST http://localhost:4000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What is RAG?"}' | jq
