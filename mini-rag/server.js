@@ -644,7 +644,7 @@ SOURCES:
 ${sources.map((s) => `[${s.num}] ${s.text}`).join("\n\n")}
 `.trim();
 
-    const MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
     const tLLM = Date.now();
     let parsed = null;
     let raw = "";
