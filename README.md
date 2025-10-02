@@ -27,7 +27,7 @@
     - Displays Response Timing, Token Usage and Cost estimates.
 3. Gemini (LLM and embedding)
     - Embeddings (embedding-001) converts text chunks into 768-dimensional vectors for semantic search.
-    - LLM(gemini-1.5-flash) produces the NLP answer, with inline [1], [2].
+    - LLM(gemini-2.0-flash-lite) produces the NLP answer, with inline [1], [2].
 4. Pinecone (Vector Database)
     - Stores embeddings (vector representations of your docs).
     - Retrieves the most similar chunks for a given query (semantic search) (topK:8)
@@ -69,7 +69,7 @@
     3. Embeddings: Gemini embedding-001 (768-dim).  
     4. Vector Database: Pinecone, cosine similarity search, serverless deployment in AWS us-east-1.  
     5. Reranker: Cohere Rerank API, reorders retrieved chunks by relevance.  
-    6. LLM: Gemini-1.5-Flash for generating answers with citations.  
+    6. LLM: gemini-2.0-flash-lite for generating answers with citations.  
 
     Chunking Strategy:  
     Documents are split into ~1,000-token chunks with ~15% overlap. Metadata includes text, docId, chunk, title, section, and position for traceability.  
@@ -91,7 +91,7 @@
 3. What strategy is used for chunking documents?
     - Documents are split into approximately 1,000-token chunks with about 15% overlap [1].
 4. Explain data pipeline flow in detail.
-    - The Mini-RAG system's data pipeline begins with document chunking into approximately 1,000-token segments with roughly 15% overlap [1]. Metadata such as text, docId, chunk, title, section, and position are included for traceability [1]. A Node.js and Express server backend connects to AI services and manages routes [1]. Gemini embedding-001 generates 768-dimensional embeddings [1], which are stored in a Pinecone vector database deployed serverlessly in AWS us-east-1 [1]. Pinecone performs cosine similarity search to retrieve relevant chunks [1], which are then reranked by the Cohere Rerank API [1]. Finally, the Gemini-1.5-Flash LLM generates answers with inline citations based on the reranked chunks [1]. A React frontend handles text uploads, querying, and answer display [1].
+    - The Mini-RAG system's data pipeline begins with document chunking into approximately 1,000-token segments with roughly 15% overlap [1]. Metadata such as text, docId, chunk, title, section, and position are included for traceability [1]. A Node.js and Express server backend connects to AI services and manages routes [1]. Gemini embedding-001 generates 768-dimensional embeddings [1], which are stored in a Pinecone vector database deployed serverlessly in AWS us-east-1 [1]. Pinecone performs cosine similarity search to retrieve relevant chunks [1], which are then reranked by the Cohere Rerank API [1]. Finally, the gemini-2.0-flash-lite LLM generates answers with inline citations based on the reranked chunks [1]. A React frontend handles text uploads, querying, and answer display [1].
 5. How long can cold starts take on Render hosting?
     - Cold starts on Render hosting may take approximately 15 seconds. [1]
 
